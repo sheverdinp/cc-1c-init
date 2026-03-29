@@ -1,0 +1,596 @@
+Работай как инициализатор репозитория 1С-проекта.
+
+Требования:
+
+- Работай в текущем каталоге.
+- Не задавай вопросов.
+- Разрешено клонировать только репозитории cc-1c-skills и cursor_rules_1c (см. шаги 4 и 5).
+- Создай указанную структуру каталогов, `.gitkeep` в пустых папках и перечисленные ниже файлы с точным содержимым.
+- Все текстовые файлы создай в UTF-8, с переводами строк LF.
+- Если каталог уже существует, не удаляй его.
+- Если файл уже существует, не перезаписывай молча: сначала покажи diff.
+- В конце выведи краткий отчет: что создано, и компактное дерево каталогов.
+
+--------------------------------------------------
+
+1) Создай каталоги
+
+src/config_base
+src/config_ref
+src/extensions
+src/reports
+src/processings
+
+tasks/active
+tasks/archive
+
+kb
+kb/1c-rules
+kb/1c-rules/agents
+
+sandbox
+
+meta
+
+scripts
+tools
+tmp
+
+releases
+
+.vscode
+
+--------------------------------------------------
+
+2) Создай `.gitkeep` в пустых каталогах
+
+src/config_base/.gitkeep
+src/config_ref/.gitkeep
+src/extensions/.gitkeep
+src/reports/.gitkeep
+src/processings/.gitkeep
+
+tasks/active/.gitkeep
+tasks/archive/.gitkeep
+
+kb/.gitkeep
+
+sandbox/.gitkeep
+
+scripts/.gitkeep
+tools/.gitkeep
+tmp/.gitkeep
+releases/.gitkeep
+
+--------------------------------------------------
+
+3) Создай файлы с точным содержимым
+
+<<<FILE:CLAUDE.md>>>
+# Правила проекта
+
+Один репозиторий = один проект по одной конфигурации 1С.
+
+## Структура исходников
+
+`src/config_base` — read-only snapshot основной конфигурации. Не изменять автоматически.
+
+`src/config_ref/<ИмяКонфигурации>` — read-only snapshot-ы внешних конфигураций (для анализа обмена и интеграций). Не изменять, не расширять.
+
+Рабочие изменения допускаются только в:
+
+- `src/extensions` — расширения
+- `src/reports` — внешние отчёты
+- `src/processings` — внешние обработки
+
+## Привязка к задачам
+
+Любое изменение кода должно быть связано с задачей в `tasks/active`.
+Формат папки задачи: `T-XXXX_<name>`.
+Не изменяй проектный код без активной задачи.
+
+## Порядок выбора решения
+
+Перед написанием кода проверь (от простого к сложному):
+
+1. Инструкция пользователю
+2. Настройки конфигурации
+3. Исправление данных
+4. Внешний отчёт / обработка
+5. Расширение
+6. Изменение основной конфигурации
+
+## Протокол анализа кода (ОБЯЗАТЕЛЬНО)
+
+При поиске, анализе или изменении любого объекта или метода 1С выполняй строго по порядку:
+
+1. **Основная конфигурация** — найди объект/метод в `src/config_base` (или через MCP). Зафиксируй оригинальную реализацию.
+2. **Все расширения** — проверь каждый каталог в `src/extensions` на наличие перехватов (`Перед`, `После`, `Вместо`), дополнений или замен этого объекта/метода.
+3. **Сводка** — перед любым действием кратко сообщи: что в основной конфигурации, что изменено в расширениях, какие есть перехваты.
+4. **Только после этого** — приступай к реализации с учётом всех найденных зависимостей.
+
+При работе с обменом данных или интеграцией — дополнительно:
+5. Найди соответствующие объекты в `src/config_ref/<ИмяКонфигурации>` — зафиксируй структуру на стороне внешней конфигурации.
+6. Сводка должна включать: что в нашей конфигурации, что в расширениях, что во внешней конфигурации.
+
+Не пропускай шаги 1–3. Если доступ к основной конфигурации невозможен — сообщи об этом и не угадывай реализацию.
+
+## Навыки (skills)
+
+В `.claude/skills/` установлен пакет cc-1c-skills — набор навыков для полного цикла разработки 1С.
+Навыки вызываются через слэш-команды (`/epf-init`, `/epf-build`, `/cfe-init` и т.д.) или активируются автоматически по контексту задачи.
+Обновление навыков: `bash scripts/update-skills.sh`.
+
+## Автозагрузка контекста
+
+Перед написанием или анализом кода 1С:
+- Читай `.dev.env` — параметры кодирования (PREFIX, COMPANY, шаблоны комментариев)
+- Читай `meta/project_context.md` — контекст проекта (конфигурация, заказчик, версия)
+
+## Параметры проекта (.dev.env)
+
+Перед генерацией кода — прочитай `.dev.env` в корне проекта. Если файла нет — запроси параметры.
+Ключевые параметры: `PREFIX` (префикс объектов), `PLATFORM_VERSION` (версия платформы), `NEW_OBJECTS_IN` (куда размещать новые объекты).
+Шаблон: `.dev.env.example`. Подробности: `kb/1c-rules/coding-standards.md` §1.
+
+## MCP-инструменты
+
+При наличии MCP-серверов — используй их вместо Grep/Glob для поиска по коду и метаданным 1С:
+- **templatesearch** → перед написанием кода найди шаблон
+- **codesearch** → проверь существующие паттерны
+- **search_metadata** → проверь существование и структуру объектов метаданных
+- **docsearch** → проверь встроенные функции по документации
+- **ssl_search** → найди функции БСП для переиспользования
+- **syntaxcheck** → проверь синтаксис после написания (макс. 3 раза за цикл)
+
+Полный справочник: `kb/1c-rules/mcp-tools.md`.
+
+## Стандарты разработки 1С
+
+Подробные стандарты в `kb/1c-rules/coding-standards.md`. Ключевые:
+- Код и переменные — на русском языке
+- Отступы — TAB, лимит строки — 120 символов
+- Не использовать `Сообщить()` — вместо `ОбщегоНазначения.СообщитьПользователю`
+- Не обращаться к реквизитам через точку — использовать `ОбщегоНазначения.ЗначенияРеквизитовОбъекта`
+- Не делать запросы в циклах — использовать пакетные запросы
+- `&НаСервереБезКонтекста` предпочтительнее `&НаСервере`
+- Антипаттерны: `kb/1c-rules/anti-patterns.md`
+
+## Ролевые режимы работы
+
+Для сложных задач можно активировать специализированную роль: «действуй как [роль]».
+Инструкции ролей — в `kb/1c-rules/agents/`:
+
+| Роль | Файл | Когда использовать |
+|---|---|---|
+| Аналитик | `analytic.md` | PRD, спецификации, анализ требований |
+| Архитектор | `architect.md` | Проектирование архитектуры модификаций |
+| Разработчик | `developer.md` | Написание и модификация кода |
+| Ревьюер кода | `code-reviewer.md` | Ревью кода на баги и стандарты |
+| Ревьюер архитектуры | `arch-reviewer.md` | Оценка архитектурных решений |
+| Исправитель ошибок | `error-fixer.md` | Быстрое исправление синтаксических/рантайм ошибок |
+| Оптимизатор | `performance-optimizer.md` | Анализ и оптимизация производительности |
+| Менеджер метаданных | `metadata-manager.md` | Создание/изменение объектов метаданных |
+| Планировщик | `planner.md` | Планирование реализации фич |
+| Рефакторинг | `refactoring.md` | Удаление мертвого кода, устранение дубликатов |
+| Тестировщик | `tester.md` | Деплой и тестирование через веб-клиент |
+| Техписатель | `doc-writer.md` | Документация для пользователей и администраторов |
+
+Полная инструкция по инструментарию: `kb/1c-rules/README.md`.
+
+## Безопасная автоматизация
+
+- `scripts/` — доверенные скрипты, разрешены к запуску.
+- `tools/` — AI-generated и вспомогательные утилиты. Не запускать без подтверждения пользователя.
+- `tmp/` — одноразовые скрипты.
+- Никогда не перемещай скрипт в `scripts/` без явного одобрения пользователя.
+- Никогда не применяй ничего к production автоматически.
+
+## Sandbox
+
+`sandbox/` — эксперименты, анализ документов, черновики, тесты промптов.
+Файлы из sandbox нельзя использовать напрямую в production-workflow.
+
+## Общие принципы
+
+- Предпочитай существующие паттерны проекта.
+- Избегай не относящегося к задаче рефакторинга.
+- Перед написанием кода — ищи шаблоны через `templatesearch`, проверяй паттерны через `codesearch`.
+- После написания — проверяй через `syntaxcheck`, проводи самопроверку кода.
+- Отвечай на русском языке.
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:README.md>>>
+# 1C Project Repository
+
+Один репозиторий = один проект по одной конфигурации 1С.
+
+## Структура
+
+```
+src/                 — исходный код
+  config_base/       — snapshot основной конфигурации (read-only)
+  config_ref/        — snapshot-ы внешних конфигураций (read-only, для анализа)
+  extensions/        — расширения
+  reports/           — внешние отчёты
+  processings/       — внешние обработки
+tasks/               — задачи (active / archive)
+kb/                  — база знаний
+  1c-rules/          — стандарты и правила разработки 1С
+sandbox/             — эксперименты и черновики
+meta/                — контекст проекта
+scripts/             — доверенные скрипты
+tools/               — вспомогательные утилиты
+tmp/                 — временные файлы
+releases/            — релизы
+.claude/skills/      — навыки AI-агента (cc-1c-skills)
+```
+
+## Жизненный цикл задачи
+
+Запрос → tasks/active → анализ → спецификация → реализация → тест → релиз → archive
+
+## AI-инструментарий
+
+- [cc-1c-skills](https://github.com/Nikolay-Shirokov/cc-1c-skills) — навыки для полного цикла разработки 1С
+- [cursor_rules_1c](https://github.com/comol/cursor_rules_1c) — стандарты, агенты, антипаттерны (адаптировано для Claude Code)
+
+Обновление: `bash scripts/update-skills.sh` и `bash scripts/update-cursor-rules.sh`
+
+Инструкция по использованию: `kb/1c-rules/README.md`
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:.gitignore>>>
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+*.exe
+
+# Editors
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Claude Code (settings and memory - не трекать, skills - трекать)
+.claude/*
+!.claude/skills/
+
+# Git
+*.orig
+*.rej
+
+# 1C temp and backups
+*.cfu
+*.cfe
+*.cf
+*.epf
+*.erf
+*.1cd
+*.dt
+*.tmp
+*.bak
+*.old
+*.log
+*.dmp
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.gz
+*.tar
+*.tar.gz
+
+# Large configuration snapshots
+src/config_base/**
+!src/config_base/.gitkeep
+
+src/config_ref/**
+!src/config_ref/.gitkeep
+
+# Temporary working folders
+tmp/**
+!tmp/.gitkeep
+
+sandbox/**
+!sandbox/.gitkeep
+
+# Local meta overrides
+meta/*.local.json
+meta/*.local.md
+
+# Project-local dev env
+.dev.env
+
+# Upstream cache for update checks
+kb/1c-rules/.upstream-cache/
+kb/1c-rules/.agents-cache/
+.dev.env.example.upstream
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:meta/project_context.md>>>
+# Контекст проекта
+
+Проект:
+Заказчик:
+Платформа:
+Конфигурация:
+Версия конфигурации:
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:meta/config_snapshot.json>>>
+{
+  "platform_version": "",
+  "configuration_name": "",
+  "configuration_version": "",
+  "dump_format": "hierarchical",
+  "dump_date": "",
+  "dump_source": ""
+}
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:.vscode/settings.json>>>
+{
+  "files.eol": "\n",
+  "files.encoding": "utf8"
+}
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:src/CLAUDE.md>>>
+# Работа с исходниками 1С
+
+Перед изменением любого объекта или метода — обязательный протокол:
+
+1. Найди оригинал в `config_base/` (или через MCP).
+2. Проверь ВСЕ каталоги в `extensions/` — есть ли перехваты, дополнения, замены.
+3. Сообщи сводку: оригинал + все найденные модификации в расширениях.
+4. Только после этого приступай к реализации.
+
+При задачах обмена/интеграции — также проверь `config_ref/` для анализа внешней стороны.
+
+Пропуск шагов 1–3 запрещён.
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:scripts/update-skills.sh>>>
+#!/bin/bash
+# Обновление навыков cc-1c-skills из GitHub
+set -e
+
+REPO="https://github.com/Nikolay-Shirokov/cc-1c-skills.git"
+SKILLS_DIR=".claude/skills"
+TEMP_DIR=$(mktemp -d)
+
+cleanup() { rm -rf "$TEMP_DIR"; }
+trap cleanup EXIT
+
+echo "cc-1c-skills: проверка обновлений..."
+git clone --depth 1 --quiet "$REPO" "$TEMP_DIR/repo"
+
+if [ ! -d "$TEMP_DIR/repo/.claude/skills" ]; then
+    echo "ОШИБКА: навыки не найдены в репозитории"
+    exit 1
+fi
+
+if [ -d "$SKILLS_DIR" ]; then
+    changes=$(diff -rq "$SKILLS_DIR" "$TEMP_DIR/repo/.claude/skills" 2>/dev/null || true)
+    if [ -z "$changes" ]; then
+        echo "Навыки актуальны, обновление не требуется."
+        exit 0
+    fi
+    echo "Обнаружены изменения:"
+    echo "$changes"
+    echo ""
+fi
+
+echo "Установка навыков в $SKILLS_DIR..."
+rm -rf "$SKILLS_DIR"
+mkdir -p .claude
+cp -r "$TEMP_DIR/repo/.claude/skills" "$SKILLS_DIR"
+
+echo "Готово. Навыки обновлены."
+<<<END FILE>>>
+
+--------------------------------------------------
+
+<<<FILE:scripts/update-cursor-rules.sh>>>
+#!/bin/bash
+# Обновление правил из cursor_rules_1c (GitHub → kb/1c-rules/)
+set -e
+
+REPO="https://github.com/comol/cursor_rules_1c.git"
+RULES_DIR="kb/1c-rules"
+TEMP_DIR=$(mktemp -d)
+
+cleanup() { rm -rf "$TEMP_DIR"; }
+trap cleanup EXIT
+
+echo "cursor_rules_1c: проверка обновлений..."
+git clone --depth 1 --quiet "$REPO" "$TEMP_DIR/repo"
+
+SRC="$TEMP_DIR/repo/.cursor"
+
+if [ ! -d "$SRC/rules" ]; then
+    echo "ОШИБКА: правила не найдены в репозитории"
+    exit 1
+fi
+
+CACHE_DIR="$RULES_DIR/.upstream-cache"
+
+if [ -d "$CACHE_DIR" ]; then
+    changes=$(diff -rq "$CACHE_DIR" "$SRC/rules" 2>/dev/null || true)
+    agent_changes=$(diff -rq "$RULES_DIR/.agents-cache" "$SRC/agents" 2>/dev/null || true)
+    if [ -z "$changes" ] && [ -z "$agent_changes" ]; then
+        echo "Правила актуальны, обновление не требуется."
+        exit 0
+    fi
+    echo "Обнаружены изменения в upstream."
+fi
+
+echo ""
+echo "=== Исходные файлы обновлены ==="
+echo "Для конвертации в формат Claude Code запустите Claude Code и скажите:"
+echo "  «Обнови правила 1С из кэша upstream»"
+echo ""
+
+mkdir -p "$RULES_DIR/.upstream-cache"
+mkdir -p "$RULES_DIR/.agents-cache"
+cp -r "$SRC/rules/"* "$RULES_DIR/.upstream-cache/" 2>/dev/null || true
+cp -r "$SRC/agents/"* "$RULES_DIR/.agents-cache/" 2>/dev/null || true
+
+if [ -f "$TEMP_DIR/repo/.dev.env.example" ]; then
+    cp "$TEMP_DIR/repo/.dev.env.example" ".dev.env.example.upstream"
+    echo "Обновлён .dev.env.example.upstream"
+fi
+
+echo "Готово. Кэш upstream обновлён."
+<<<END FILE>>>
+
+--------------------------------------------------
+
+4) Установи навыки cc-1c-skills
+
+Выполни:
+
+```
+git clone --depth 1 https://github.com/Nikolay-Shirokov/cc-1c-skills.git tmp/_cc-1c-skills
+cp -r tmp/_cc-1c-skills/.claude/skills .claude/skills
+rm -rf tmp/_cc-1c-skills
+```
+
+Если `.claude/skills` уже существует — сначала покажи diff, затем обнови.
+
+--------------------------------------------------
+
+5) Установи и конвертируй правила cursor_rules_1c
+
+Выполни:
+
+```
+git clone --depth 1 https://github.com/comol/cursor_rules_1c.git tmp/_cursor_rules_1c
+```
+
+Затем конвертируй из формата Cursor в формат Claude Code:
+
+### Правила (.cursor/rules/*.mdc → kb/1c-rules/)
+
+Создай 3 файла в `kb/1c-rules/`:
+
+- **coding-standards.md** — объедини: project_rules.mdc + dev-standards-core.mdc + dev-standards-architecture.mdc + dev-standards-forms.mdc + form_module_rules.mdc. Убери YAML-фронтматтер. Замени `@rules/file.mdc` на `kb/1c-rules/file.md`, `@skills/` на `.claude/skills/`.
+- **anti-patterns.md** — конвертируй anti-patterns.mdc. Убери фронтматтер.
+- **mcp-tools.md** — конвертируй mcp-tools.mdc. Добавь секцию конфигурации MCP-серверов для Claude Code (из .cursor/mcp.json).
+
+### Агенты (.cursor/agents/*.md → kb/1c-rules/agents/)
+
+Конвертируй все 12 файлов агентов:
+- Убери YAML-фронтматтер (name, description, model, tools, allowParallel)
+- Замени `@rules/file.mdc` на `kb/1c-rules/file.md`
+- Замени `@skills/skill/SKILL.md` на `.claude/skills/skill/`
+- Замени `@agents/agent.md` на `kb/1c-rules/agents/agent.md`
+- Добавь заголовок: `> **Активация:** Скажи «действуй как [роль]»`
+
+Файлы: analytic.md, architect.md, arch-reviewer.md, code-reviewer.md, developer.md, doc-writer.md, error-fixer.md, metadata-manager.md, performance-optimizer.md, planner.md, refactoring.md, tester.md
+
+### .dev.env.example
+
+Скопируй `.dev.env.example` из репозитория в корень проекта. Если уже есть — покажи diff.
+
+### Очистка
+
+```
+rm -rf tmp/_cursor_rules_1c
+```
+
+--------------------------------------------------
+
+6) Создай файл .dev.env.example
+
+Если не был скопирован на шаге 5, создай с содержимым:
+
+<<<FILE:.dev.env.example>>>
+# Параметры проекта для стандартов разработки 1С
+# Скопируйте этот файл как .dev.env и заполните значениями вашего проекта
+
+# Префикс добавленных объектов метаданных и реквизитов
+# Примеры: гр, лтх, рлф
+PREFIX=
+
+# Имя компании/проекта для комментариев
+# Примеры: МояКомпания, MyCompany
+COMPANY=
+
+# Идентификатор разработчика
+# Примеры: ИвановИ, Иванов И.И.
+DEVELOPER=
+
+# Минимальная версия платформы 1С:Предприятие
+# Примеры: 8.3.18, 8.3.24, 8.3.25
+PLATFORM_VERSION=
+
+# Шаблон открывающего комментария доработки
+# Плейсхолдеры: {COMPANY}, {DEVELOPER}, {DATE}, {TASK}
+COMMENT_OPEN=// +++ {COMPANY}; {DEVELOPER}; {DATE}; {TASK}
+
+# Шаблон закрывающего комментария доработки
+COMMENT_CLOSE=// --- {COMPANY}; {DEVELOPER}; {DATE}; {TASK}
+
+# Куда размещать новые объекты метаданных
+# main_configuration — новые объекты в основную конфигурацию
+# extension — новые объекты в расширение
+NEW_OBJECTS_IN=main_configuration
+<<<END FILE>>>
+
+--------------------------------------------------
+
+7) Создай инструкцию kb/1c-rules/README.md
+
+Создай файл с инструкцией по использованию всего инструментария:
+- Быстрый старт (.dev.env, MCP, infobasesettings.md)
+- Повседневная разработка (примеры запросов)
+- Ролевые режимы (таблица ролей с примерами активации)
+- Навыки (слэш-команды)
+- Рабочие процессы (новая фича, баг, оптимизация, метаданные)
+- Обновление инструментария
+- Советы
+
+--------------------------------------------------
+
+8) Создай файл check_up.md
+
+Создай промт для проверки и диагностики проекта. Промт должен проверять:
+1. Параметры проекта (.dev.env, meta/project_context.md, meta/config_snapshot.json)
+2. Структуру каталогов (все обязательные каталоги и файлы)
+3. Обновления (cc-1c-skills, cursor_rules_1c)
+4. Противоречия (между CLAUDE.md и kb/1c-rules/, между .dev.env и правилами)
+5. Качество кода (антипаттерны, стандарты) — если код есть
+6. .gitignore (корректность исключений)
+7. Рекомендации по оптимизации
+
+Формат вывода: отчёт со статусом 🟢/🟡/🔴, списком проблем и рекомендациями.
+
+--------------------------------------------------
+
+После создания:
+
+1. Удали этот файл-промт из каталога проекта (он больше не нужен).
+2. Вывести список созданных файлов.
+3. Вывести дерево каталогов (без содержимого `.claude/skills/` — только указать количество навыков, без содержимого `kb/1c-rules/agents/` — только указать количество файлов).
+4. Напомнить: заполни `meta/project_context.md` данными проекта и создай `.dev.env` из `.dev.env.example`.
